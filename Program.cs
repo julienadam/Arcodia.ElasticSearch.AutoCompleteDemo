@@ -1,6 +1,7 @@
 ﻿using Elastic.Clients.Elasticsearch;
 using Elastic.Clients.Elasticsearch.QueryDsl;
 using Elastic.Transport;
+using System.Diagnostics;
 
 var uri = new Uri("https://localhost:9200");
 var userName = "elastic";
@@ -35,9 +36,13 @@ while (true)
     }
     Console.WriteLine("-----------------------------------------------");
     Console.WriteLine($"*** Multi-match bool prefix on {input}");
+    var sw = Stopwatch.StartNew();
     await PrintAutoCompleteMultiMatch(client, input);
+    Console.WriteLine($"Done in {sw.Elapsed}");
+    sw.Restart();
     Console.WriteLine($"*** Match phrase prefix on {input}");
     await PrintAutoCompleteMatchPhrase(client, input);
+    Console.WriteLine($"Done in {sw.Elapsed}");
 }
 
 async Task PrintAutoCompleteMultiMatch(ElasticsearchClient client, string input)
@@ -46,6 +51,7 @@ async Task PrintAutoCompleteMultiMatch(ElasticsearchClient client, string input)
         .Index("mtg_v2")
         .From(0)
         .Size(10)
+        .SourceIncludes(new[] { "name", "set" })
         .Query(q => q
             .MultiMatch(mmq => mmq
                 .Query(input)
@@ -61,6 +67,7 @@ async Task PrintAutoCompleteMatchPhrase(ElasticsearchClient client, string input
         .Index("mtg_v2")
         .From(0)
         .Size(10)
+        .SourceIncludes(new[] { "name", "set" })
         .Query(q => q
             .MatchPhrasePrefix(mpp => mpp
                 .Query(input)
@@ -73,7 +80,7 @@ static void PrintHits(SearchResponse<Card> response)
 {
     foreach (var hit in response.Hits)
     {
-        Console.WriteLine($"\t{hit.Score}\t{hit?.Source?.Name}");
+        Console.WriteLine($"\t{hit?.Score}\t{hit?.Source?.Set}\t{hit?.Source?.Name}");
     }
 }
 
@@ -82,11 +89,3 @@ public class Card
     public string? Name { get; set; }
     public string? Set { get; set; }
 }
-
-//public class Movie
-//{
-//    public string? Title { get; set; }
-//    public string[]? Genres { get; set; }
-//    public int Id { get; set; }
-//    public int Year { get; set; }
-//}
