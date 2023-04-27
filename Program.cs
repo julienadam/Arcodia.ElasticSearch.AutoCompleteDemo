@@ -14,6 +14,8 @@ var settings = new ElasticsearchClientSettings(uri)
 
 var client = new ElasticsearchClient(settings);
 
+var fieldToSearch = "name.search";
+
 Console.WriteLine("Start typing a title name, ESC to quit");
 var input = "";
 while (true)
@@ -40,45 +42,51 @@ while (true)
 
 async Task PrintAutoCompleteMultiMatch(ElasticsearchClient client, string input)
 {
-    var response = await client.SearchAsync<Movie>(s => s
-        .Index("movies_auto_complete")
+    var response = await client.SearchAsync<Card>(s => s
+        .Index("mtg_v2")
         .From(0)
         .Size(10)
         .Query(q => q
             .MultiMatch(mmq => mmq
                 .Query(input)
                 .Type(TextQueryType.BoolPrefix)
-                .Fields(new[] { "title", "title._2gram", "title._3gram" }))));
+                .Fields(new[] { fieldToSearch, $"{fieldToSearch}._2gram", $"{fieldToSearch}._3gram" }))));
 
     PrintHits(response);
 }
 
 async Task PrintAutoCompleteMatchPhrase(ElasticsearchClient client, string input)
 {
-    var response = await client.SearchAsync<Movie>(s => s
-        .Index("movies_auto_complete")
+    var response = await client.SearchAsync<Card>(s => s
+        .Index("mtg_v2")
         .From(0)
         .Size(10)
         .Query(q => q
             .MatchPhrasePrefix(mpp => mpp
                 .Query(input)
-                .Field(m => m.Title))));
+                .Field(fieldToSearch))));
 
     PrintHits(response);
 }
 
-static void PrintHits(SearchResponse<Movie> response)
+static void PrintHits(SearchResponse<Card> response)
 {
     foreach (var hit in response.Hits)
     {
-        Console.WriteLine($"\t{hit.Score}\t{hit?.Source?.Title}");
+        Console.WriteLine($"\t{hit.Score}\t{hit?.Source?.Name}");
     }
 }
 
-public class Movie
+public class Card
 {
-    public string? Title { get; set; }
-    public string[]? Genres { get; set; }
-    public int Id { get; set; }
-    public int Year { get; set; }
+    public string? Name { get; set; }
+    public string? Set { get; set; }
 }
+
+//public class Movie
+//{
+//    public string? Title { get; set; }
+//    public string[]? Genres { get; set; }
+//    public int Id { get; set; }
+//    public int Year { get; set; }
+//}
